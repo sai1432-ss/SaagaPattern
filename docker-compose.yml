@@ -1,0 +1,103 @@
+services:
+  db:
+    image: postgres:13-alpine
+    container_name: saga_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: sagas
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d sagas"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  flight_service:
+    build: ./flight-service
+    container_name: flight_service
+    ports:
+      - "3001:3000"
+    environment:
+      - PORT=3000
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  hotel_service:
+    build: ./hotel-service
+    container_name: hotel_service
+    ports:
+      - "3002:3000"
+    environment:
+      - PORT=3000
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  car_service:
+    build: ./car-service
+    container_name: car_service
+    ports:
+      - "3003:3000"
+    environment:
+      - PORT=3000
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  payment_service:
+    build: ./payment-service
+    container_name: payment_service
+    ports:
+      - "3004:3000"
+    environment:
+      - PORT=3000
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  orchestrator:
+    build: ./booking-orchestrator
+    container_name: orchestrator
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - DATABASE_URL=postgresql://user:password@db:5432/sagas
+      - FLIGHT_SERVICE_URL=http://flight_service:3000
+      - HOTEL_SERVICE_URL=http://hotel_service:3000
+      - CAR_SERVICE_URL=http://car_service:3000
+      - PAYMENT_SERVICE_URL=http://payment_service:3000
+    depends_on:
+      db:
+        condition: service_healthy
+      flight_service:
+        condition: service_healthy
+      hotel_service:
+        condition: service_healthy
+      car_service:
+        condition: service_healthy
+      payment_service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
